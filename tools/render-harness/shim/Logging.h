@@ -3,9 +3,8 @@
 // Firmware LOG_* macros routed to stderr, enabled at runtime by --verbose.
 #include <Arduino.h>
 
-#include <cstdio>
-
 #include <cstdarg>
+#include <cstdio>
 
 namespace harness {
 inline bool verboseLogging = false;
