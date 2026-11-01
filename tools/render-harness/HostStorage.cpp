@@ -13,7 +13,7 @@ HalStorage HalStorage::instance;
 namespace {
 
 bool isDir(const char* path) {
-  struct stat st {};
+  struct stat st{};
   return ::stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
@@ -46,7 +46,7 @@ HalFile& HalFile::operator=(HalFile&& other) noexcept {
 }
 
 size_t HalFile::size() {
-  struct stat st {};
+  struct stat st{};
   if (fd < 0 || ::fstat(fd, &st) != 0) return 0;
   return static_cast<size_t>(st.st_size);
 }
@@ -64,7 +64,7 @@ bool HalFile::truncate(const uint64_t length) { return fd >= 0 && ::ftruncate(fd
 
 int HalFile::available() const {
   if (fd < 0) return 0;
-  struct stat st {};
+  struct stat st{};
   if (::fstat(fd, &st) != 0) return 0;
   const off_t cur = ::lseek(fd, 0, SEEK_CUR);
   return cur < 0 || cur >= st.st_size ? 0 : static_cast<int>(st.st_size - cur);
@@ -111,7 +111,7 @@ size_t HalFile::write(const void* buf, const size_t count) { return write(static
 size_t HalFile::write(const uint8_t b) { return write(&b, 1); }
 
 bool HalFile::isDirectory() const {
-  struct stat st {};
+  struct stat st{};
   return fd >= 0 && ::fstat(fd, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
@@ -145,7 +145,7 @@ bool HalStorage::mkdir(const char* path, const bool pFlag) {
 }
 
 bool HalStorage::exists(const char* path) {
-  struct stat st {};
+  struct stat st{};
   return ::stat(path, &st) == 0;
 }
 
