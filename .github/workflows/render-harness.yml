@@ -1,0 +1,67 @@
+name: Render harness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  render-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build zlib1g-dev
+
+      - name: Configure
+        run: cmake -S tools/render-harness -B build/rh -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/rh
+
+      - name: Render test books
+        run: |
+          set -e
+          for book in font-prewarm-benchmark test_reader_rendering_matrix test_tables; do
+            ./build/rh/render-harness --epub "test/epubs/${book}.epub" --out "out/${book}" \
+              --cache-dir "build/rh-cache/${book}"
+            python3 tools/render-harness/contact_sheet.py "out/${book}"
+          done
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: render-harness
+          path: out/
+          if-no-files-found: error
+
+  # clang-format 21 (the version ci.yml enforces) over the harness only. When
+  # it would change anything, the formatted files are pushed to
+  # ci-format/<branch> so they can be applied without reading job logs.
+  harness-format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install clang-format-21
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-format-21
+      - name: Format the harness
+        run: |
+          find tools/render-harness \( -name '*.h' -o -name '*.cpp' \) -print0 \
+            | xargs -0 /usr/lib/llvm-21/bin/clang-format -i
+          if git diff --quiet; then echo "::notice::render-harness: already clang-format-21 clean"; exit 0; fi
+          git diff --stat | sed 's/^/::warning::needs format: /'
+          branch="ci-format/${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git -c user.name="format bot" -c user.email="ci@users.noreply.github.com" commit -qam "style: clang-format-21 render harness"
+          git push -qf origin "HEAD:refs/heads/$branch"
+          echo "::warning::Formatted files pushed to $branch"
